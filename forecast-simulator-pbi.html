@@ -1,0 +1,595 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Power BI Forecast Simulator</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f8f9fa;
+            padding: 16px;
+            color: #333;
+        }
+        
+        .container {
+            max-width: 100%;
+            margin: 0 auto;
+        }
+        
+        h1 {
+            text-align: center;
+            margin-bottom: 6px;
+            color: #0078d4;
+            font-size: 1.4rem;
+            font-weight: 600;
+        }
+        
+        .subtitle {
+            text-align: center;
+            color: #666;
+            margin-bottom: 16px;
+            font-size: 0.85rem;
+        }
+        
+        .main-layout {
+            display: grid;
+            grid-template-columns: 280px 1fr;
+            gap: 16px;
+        }
+        
+        @media (max-width: 700px) {
+            .main-layout {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        .controls-panel {
+            background: #fff;
+            border-radius: 8px;
+            padding: 16px;
+            border: 1px solid #e0e0e0;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+        }
+        
+        .control-group {
+            margin-bottom: 16px;
+        }
+        
+        .control-group label {
+            display: block;
+            margin-bottom: 4px;
+            font-weight: 600;
+            color: #0078d4;
+            font-size: 0.85rem;
+        }
+        
+        .control-group .hint {
+            font-size: 0.7rem;
+            color: #888;
+            margin-bottom: 6px;
+            line-height: 1.4;
+        }
+        
+        input[type="range"] {
+            width: 100%;
+            height: 6px;
+            border-radius: 3px;
+            background: #e0e0e0;
+            outline: none;
+            -webkit-appearance: none;
+        }
+        
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: #0078d4;
+            cursor: pointer;
+        }
+        
+        .value-display {
+            text-align: right;
+            font-size: 0.8rem;
+            color: #666;
+            margin-top: 3px;
+        }
+        
+        select {
+            width: 100%;
+            padding: 8px;
+            border-radius: 4px;
+            border: 1px solid #ccc;
+            background: #fff;
+            color: #333;
+            font-size: 0.85rem;
+        }
+        
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .checkbox-group input {
+            width: 16px;
+            height: 16px;
+            accent-color: #0078d4;
+        }
+        
+        .chart-panel {
+            background: #fff;
+            border-radius: 8px;
+            padding: 16px;
+            border: 1px solid #e0e0e0;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+        }
+        
+        .chart-container {
+            position: relative;
+            height: 280px;
+        }
+        
+        .explanation-box {
+            margin-top: 14px;
+            padding: 12px;
+            background: #e6f2ff;
+            border-left: 4px solid #0078d4;
+            border-radius: 0 6px 6px 0;
+            font-size: 0.8rem;
+            line-height: 1.5;
+        }
+        
+        .explanation-box h3 {
+            color: #0078d4;
+            margin-bottom: 6px;
+            font-size: 0.9rem;
+        }
+        
+        .legend-box {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-top: 12px;
+            padding: 10px;
+            background: #f0f0f0;
+            border-radius: 6px;
+        }
+        
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.75rem;
+        }
+        
+        .legend-color {
+            width: 20px;
+            height: 3px;
+            border-radius: 2px;
+        }
+        
+        .legend-color.dashed {
+            background: repeating-linear-gradient(90deg, #d83b01, #d83b01 4px, transparent 4px, transparent 8px);
+        }
+        
+        .legend-color.confidence {
+            height: 10px;
+            opacity: 0.3;
+        }
+        
+        .data-scenario {
+            margin-bottom: 16px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid #e0e0e0;
+        }
+        
+        .scenario-btn {
+            display: block;
+            width: 100%;
+            padding: 8px;
+            margin-top: 6px;
+            border: 1px solid #ccc;
+            background: #fff;
+            color: #333;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.8rem;
+            transition: all 0.2s;
+            text-align: left;
+        }
+        
+        .scenario-btn:hover {
+            background: #e6f2ff;
+            border-color: #0078d4;
+        }
+        
+        .scenario-btn.active {
+            background: #cce4ff;
+            border-color: #0078d4;
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📊 Forecast Simulator</h1>
+        <p class="subtitle">Adjust settings to see how forecasting works</p>
+        
+        <div class="main-layout">
+            <div class="controls-panel">
+                <div class="data-scenario">
+                    <label>Data Scenario</label>
+                    <button class="scenario-btn active" data-scenario="seasonal">📅 Seasonal (Monthly)</button>
+                    <button class="scenario-btn" data-scenario="trend">📈 Upward Trend</button>
+                    <button class="scenario-btn" data-scenario="volatile">🎲 Volatile / Noisy</button>
+                    <button class="scenario-btn" data-scenario="incomplete">⚠️ Incomplete Period</button>
+                </div>
+                
+                <div class="control-group">
+                    <label>Forecast Length</label>
+                    <p class="hint">Periods to predict into the future</p>
+                    <input type="range" id="forecastLength" min="1" max="12" value="6">
+                    <div class="value-display"><span id="forecastLengthValue">6</span> months</div>
+                </div>
+                
+                <div class="control-group">
+                    <label>Ignore Last</label>
+                    <p class="hint">Exclude recent points from training</p>
+                    <input type="range" id="ignoreLast" min="0" max="6" value="0">
+                    <div class="value-display"><span id="ignoreLastValue">0</span> months</div>
+                </div>
+                
+                <div class="control-group">
+                    <label>Seasonality</label>
+                    <p class="hint">Repeating cycle length</p>
+                    <select id="seasonality">
+                        <option value="auto">Auto-detect</option>
+                        <option value="12" selected>12 (yearly)</option>
+                        <option value="4">4 (quarterly)</option>
+                        <option value="1">1 (none)</option>
+                    </select>
+                </div>
+                
+                <div class="control-group">
+                    <label>Confidence Interval</label>
+                    <input type="range" id="confidence" min="50" max="99" value="95">
+                    <div class="value-display"><span id="confidenceValue">95</span>%</div>
+                </div>
+                
+                <div class="control-group">
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="showConfidence" checked>
+                        <label for="showConfidence" style="margin: 0; font-weight: normal;">Show confidence band</label>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="chart-panel">
+                <div class="chart-container">
+                    <canvas id="forecastChart"></canvas>
+                </div>
+                
+                <div class="legend-box">
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: #0078d4;"></div>
+                        <span>Historical</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: #d83b01;"></div>
+                        <span>Ignored</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color dashed"></div>
+                        <span>Forecast</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color confidence" style="background: #d83b01;"></div>
+                        <span>Confidence</span>
+                    </div>
+                </div>
+                
+                <div class="explanation-box">
+                    <h3>💡 What's Happening</h3>
+                    <p id="explanation">The forecast uses exponential smoothing to project future values. Try adjusting settings to see how they affect the prediction.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const scenarios = {
+            seasonal: {
+                name: "Seasonal Monthly Sales",
+                data: [120, 95, 110, 140, 165, 190, 210, 195, 175, 150, 130, 145,
+                       125, 100, 115, 145, 170, 200, 220, 205, 180, 155, 135, 150],
+                description: "Classic retail pattern with summer peaks. The forecast picks up the seasonal rhythm."
+            },
+            trend: {
+                name: "Upward Trend",
+                data: [100, 108, 105, 115, 120, 125, 130, 128, 140, 145, 150, 155,
+                       160, 168, 165, 175, 180, 190, 195, 200, 210, 215, 225, 230],
+                description: "Steady growth pattern. The forecast continues the upward trajectory."
+            },
+            volatile: {
+                name: "Volatile Data",
+                data: [150, 180, 120, 200, 140, 160, 190, 110, 175, 145, 195, 130,
+                       165, 185, 125, 210, 135, 170, 155, 200, 140, 180, 160, 190],
+                description: "High variability. Notice how the confidence band widens — the model is uncertain."
+            },
+            incomplete: {
+                name: "Incomplete Last Period",
+                data: [120, 95, 110, 140, 165, 190, 210, 195, 175, 150, 130, 145,
+                       125, 100, 115, 145, 170, 200, 220, 205, 180, 155, 135, 45],
+                description: "Last month has partial data (45). Set 'Ignore Last' to 1 to exclude it!"
+            }
+        };
+        
+        let currentScenario = 'seasonal';
+        let chart = null;
+        
+        function getLabels(dataLength, forecastLength) {
+            const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 
+                           'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+            const labels = [];
+            const startYear = 23;
+            
+            for (let i = 0; i < dataLength + forecastLength; i++) {
+                const monthIdx = i % 12;
+                const year = startYear + Math.floor(i / 12);
+                labels.push(`${months[monthIdx]} '${year}`);
+            }
+            return labels;
+        }
+        
+        function calculateForecast(data, ignoreLast, forecastLength, seasonality, confidence) {
+            const trainingData = ignoreLast > 0 ? data.slice(0, -ignoreLast) : [...data];
+            const n = trainingData.length;
+            
+            let sumX = 0, sumY = 0, sumXY = 0, sumX2 = 0;
+            for (let i = 0; i < n; i++) {
+                sumX += i;
+                sumY += trainingData[i];
+                sumXY += i * trainingData[i];
+                sumX2 += i * i;
+            }
+            const slope = (n * sumXY - sumX * sumY) / (n * sumX2 - sumX * sumX);
+            const intercept = (sumY - slope * sumX) / n;
+            
+            const seasonalIndices = [];
+            const period = parseInt(seasonality) || 12;
+            
+            if (period > 1 && n >= period) {
+                const detrended = trainingData.map((v, i) => v / (intercept + slope * i));
+                for (let s = 0; s < period; s++) {
+                    let sum = 0, count = 0;
+                    for (let i = s; i < n; i += period) {
+                        sum += detrended[i];
+                        count++;
+                    }
+                    seasonalIndices.push(count > 0 ? sum / count : 1);
+                }
+                const avgIndex = seasonalIndices.reduce((a, b) => a + b, 0) / period;
+                for (let i = 0; i < period; i++) {
+                    seasonalIndices[i] /= avgIndex;
+                }
+            } else {
+                for (let i = 0; i < period; i++) {
+                    seasonalIndices.push(1);
+                }
+            }
+            
+            const forecast = [];
+            const upperBound = [];
+            const lowerBound = [];
+            
+            let sumResiduals = 0;
+            for (let i = 0; i < n; i++) {
+                const predicted = (intercept + slope * i) * seasonalIndices[i % period];
+                sumResiduals += Math.pow(trainingData[i] - predicted, 2);
+            }
+            const stdError = Math.sqrt(sumResiduals / Math.max(1, n - 2));
+            
+            const zScore = {50: 0.67, 60: 0.84, 70: 1.04, 80: 1.28, 90: 1.645, 95: 1.96, 99: 2.576}[confidence] || 1.96;
+            
+            for (let i = 0; i < forecastLength; i++) {
+                const futureIdx = n + i;
+                const trendValue = intercept + slope * futureIdx;
+                const seasonalFactor = seasonalIndices[futureIdx % period];
+                const forecastValue = trendValue * seasonalFactor;
+                const uncertainty = stdError * zScore * Math.sqrt(1 + (i + 1) * 0.15);
+                
+                forecast.push(Math.max(0, forecastValue));
+                upperBound.push(Math.max(0, forecastValue + uncertainty));
+                lowerBound.push(Math.max(0, forecastValue - uncertainty));
+            }
+            
+            return { forecast, upperBound, lowerBound };
+        }
+        
+        function updateChart() {
+            const data = scenarios[currentScenario].data;
+            const forecastLength = parseInt(document.getElementById('forecastLength').value);
+            const ignoreLast = parseInt(document.getElementById('ignoreLast').value);
+            const seasonality = document.getElementById('seasonality').value;
+            const confidence = parseInt(document.getElementById('confidence').value);
+            const showConfidence = document.getElementById('showConfidence').checked;
+            
+            const { forecast, upperBound, lowerBound } = calculateForecast(data, ignoreLast, forecastLength, seasonality, confidence);
+            const labels = getLabels(data.length, forecastLength);
+            
+            const historicalData = data.map((v, i) => ignoreLast > 0 && i >= data.length - ignoreLast ? null : v);
+            const ignoredData = data.map((v, i) => ignoreLast > 0 && i >= data.length - ignoreLast ? v : null);
+            
+            const forecastLine = new Array(data.length).fill(null);
+            const lastTrainingIdx = data.length - 1 - ignoreLast;
+            forecastLine[lastTrainingIdx] = data[lastTrainingIdx];
+            forecast.forEach(v => forecastLine.push(v));
+            
+            const upperLine = new Array(data.length).fill(null);
+            const lowerLine = new Array(data.length).fill(null);
+            upperLine[lastTrainingIdx] = data[lastTrainingIdx];
+            lowerLine[lastTrainingIdx] = data[lastTrainingIdx];
+            upperBound.forEach(v => upperLine.push(v));
+            lowerBound.forEach(v => lowerLine.push(v));
+            
+            for (let i = 0; i < forecastLength; i++) {
+                historicalData.push(null);
+                ignoredData.push(null);
+            }
+            
+            const datasets = [
+                {
+                    label: 'Historical',
+                    data: historicalData,
+                    borderColor: '#0078d4',
+                    backgroundColor: '#0078d4',
+                    borderWidth: 2,
+                    pointRadius: 3,
+                    tension: 0.1
+                },
+                {
+                    label: 'Ignored',
+                    data: ignoredData,
+                    borderColor: '#d83b01',
+                    backgroundColor: '#d83b01',
+                    borderWidth: 2,
+                    pointRadius: 5,
+                    tension: 0.1
+                },
+                {
+                    label: 'Forecast',
+                    data: forecastLine,
+                    borderColor: '#d83b01',
+                    backgroundColor: 'transparent',
+                    borderWidth: 2,
+                    borderDash: [5, 5],
+                    pointRadius: 3,
+                    tension: 0.1
+                }
+            ];
+            
+            if (showConfidence) {
+                datasets.push({
+                    label: 'Upper Bound',
+                    data: upperLine,
+                    borderColor: 'transparent',
+                    backgroundColor: 'rgba(216, 59, 1, 0.15)',
+                    fill: '+1',
+                    pointRadius: 0,
+                    tension: 0.1
+                });
+                datasets.push({
+                    label: 'Lower Bound',
+                    data: lowerLine,
+                    borderColor: 'transparent',
+                    backgroundColor: 'rgba(216, 59, 1, 0.15)',
+                    fill: false,
+                    pointRadius: 0,
+                    tension: 0.1
+                });
+            }
+            
+            if (chart) chart.destroy();
+            
+            const ctx = document.getElementById('forecastChart').getContext('2d');
+            chart = new Chart(ctx, {
+                type: 'line',
+                data: { labels, datasets },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: { intersect: false, mode: 'index' },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            backgroundColor: 'rgba(0,0,0,0.8)',
+                            padding: 10,
+                            callbacks: {
+                                label: function(context) {
+                                    if (context.raw === null) return null;
+                                    return `${context.dataset.label}: ${Math.round(context.raw)}`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            grid: { color: 'rgba(0,0,0,0.08)' },
+                            ticks: { color: '#666', maxRotation: 45, minRotation: 45, font: { size: 10 } }
+                        },
+                        y: {
+                            grid: { color: 'rgba(0,0,0,0.08)' },
+                            ticks: { color: '#666', font: { size: 10 } },
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+            
+            updateExplanation();
+        }
+        
+        function updateExplanation() {
+            const scenario = scenarios[currentScenario];
+            const ignoreLast = parseInt(document.getElementById('ignoreLast').value);
+            const seasonality = document.getElementById('seasonality').value;
+            const confidence = parseInt(document.getElementById('confidence').value);
+            
+            let explanation = scenario.description;
+            
+            if (ignoreLast > 0) {
+                explanation += ` <strong>Ignoring last ${ignoreLast}</strong> — forecast starts from last trusted point.`;
+            }
+            
+            if (seasonality === '1') {
+                explanation += " <strong>No seasonality</strong> — just following the trend.";
+            }
+            
+            if (confidence < 80) {
+                explanation += ` <strong>${confidence}% confidence</strong> — narrow band, more risk.`;
+            }
+            
+            document.getElementById('explanation').innerHTML = explanation;
+        }
+        
+        document.getElementById('forecastLength').addEventListener('input', (e) => {
+            document.getElementById('forecastLengthValue').textContent = e.target.value;
+            updateChart();
+        });
+        
+        document.getElementById('ignoreLast').addEventListener('input', (e) => {
+            document.getElementById('ignoreLastValue').textContent = e.target.value;
+            updateChart();
+        });
+        
+        document.getElementById('seasonality').addEventListener('change', updateChart);
+        
+        document.getElementById('confidence').addEventListener('input', (e) => {
+            document.getElementById('confidenceValue').textContent = e.target.value;
+            updateChart();
+        });
+        
+        document.getElementById('showConfidence').addEventListener('change', updateChart);
+        
+        document.querySelectorAll('.scenario-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.scenario-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                currentScenario = btn.dataset.scenario;
+                updateChart();
+            });
+        });
+        
+        updateChart();
+    </script>
+</body>
+</html>
